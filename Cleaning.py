@@ -151,8 +151,8 @@ def write_csv_line(filenm, eq_cutoffs, row_ind):
 
     ## generate equilizer values from fourier transform
     equilizer = np.zeros(len(eq_cutoffs))
+    index = 0
     for i in range(len(equilizer)):
-        index = 0
         num = 0
         while ((index < len(mag_yk)) & (k[index] < eq_cutoffs[i])):
             equilizer[i] += mag_yk[index]
