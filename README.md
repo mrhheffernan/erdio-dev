@@ -50,6 +50,26 @@ Gunshot detection in the UrbanSound8K dataset: Basic visualization notebook incl
 
 ## Feature Extraction
 
+### Data Cleaning
+
+Much of the audio data in the UrbanSound8K database has a significant amount of background or "room" noise. In an attempt to clean up this background we design a filter pipeline. The first step of the process is to take the hilbert transform of the time domain waveform. The absolute value of this hilbert transform is then the instantaneous amplitude of the waveform. This instantaneous amplitude is processed by a low pass filter. The second step is to find the root mean square of the waveform. The raw waveform is then scaled by the filtered instantaneous amplitude divided by the root mean square. Finally, an overall factor is added to the waveform such that the maximum amplitude is maintained between the raw and the filtered waveforms. If the waveform has a large peak this filter thus biases the waveform towards keeping the large swings, while minimizing the "white noise" styled hum. Comparatively, if the waveform does not have large swings this filter does very little to the waveform as the root mean square is everywhere close to the instantaneous amplitude.
+
+### Musically Informed Feature Selection
+
+In an attempt to select features that are understandable to humans we look to certain ideas within music theory.
+
+#### The Equalizer Scale
+
+An additional issue with the audio data in the UrbanSound8K database is that the duration of the audio samples are non-uniform. In particular, the audio files labelled as "gun_shot" are significantly shorted in duration than many of the other class labels. As such we aim to extract features in the frequency domain. Normally, the total duration of a signal determines the lowest possible frequency in the discrete fourier transform. As such the first set of features we extract is a binned version of the fourier transform, where the bins are split into a set of human audible ranges; the bass, the midrange, the high end, the sub-audible (infrasound), and supra-audible (ultrasound). By taking the mean power in each of the bins we then remove any biasing information from the audio duration from our features.
+
+#### Harmonics and Percussives
+
+The librosa package has a convenient function that is able to separate a waveform into its harmonic and percussive components. In order to extract further musically informed features we utilize this decomposition and extract the amount of power in the harmonic and percussive components, as well as the ratio of these powers.
+
+The harmonic component of this waveform is then short-time fourier transformed and the frequencies of each time slice are binned according to the MIDI scale. This scale is a simple integer representation of the keys of a piano that has been tuned using an equal temperament. After this binning has been performed it is relatively simple to extract whether a number of musically common interval pairs and chord triplets are present. The total number of major thirds, minor thirds, perfect fifths, and major chords above a power cutoff are then counted across all time slices and extracted as a feature.
+
+The percussive component is somewhat simpler; we exploit the onset strength functions from librosa to determine the total number of large percussive amplitude onsets in the percussive component of the waveform.
+
 ## Feature Inspection
 
 ## Classification
