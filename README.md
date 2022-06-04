@@ -8,75 +8,91 @@ Erdos Institute Spring 2022 Bootcamp Capstone Project
 
 Timely identification of safety-critical events, such as gunshots, is of great importance to public safety stakeholders. However, existing systems only deliver limited value by not classifying additional urban sounds. We perform classification of environmental sounds to detect safety-critical events, in particular gunshots, and provide information on first-response via siren detection. We also engineer general features for off-line classification tasks and demonstrate how this system can provide value to additional stakeholders in the film and television industry. 
 
-Our key performance indicator (KPI) is the F measure on the gunshots specifically, and then across all classes.
+Our key performance indicator (KPI) is first and foremost the F measure on the gunshot class detection, and then across all other labeled classes.
 
-The primary data source is the UrbanSound8K dataset.
 
-Citation: 
-J. Salamon, C. Jacoby and J. P. Bello, "A Dataset and Taxonomy for Urban Sound Research", 22nd ACM International Conference on Multimedia, Orlando USA, Nov. 2014.
 
 ### Additional Materials:
 
-Presentation:https://docs.google.com/presentation/d/e/2PACX-1vRw9xHJe7y-EH16iL0kLPknPa5RUWiXMjb64CZlqCGdaaoxFanfU9NzWXLKFb9G7QsuvxqMSSqWgOPF/pub?start=false&loop=false&delayms=10000
+Presentation: [Here](https://docs.google.com/presentation/d/e/2PACX-1vRw9xHJe7y-EH16iL0kLPknPa5RUWiXMjb64CZlqCGdaaoxFanfU9NzWXLKFb9G7QsuvxqMSSqWgOPF/pub?start=false&loop=false&delayms=10000)
 
 ## Setup
 
-To run the notebook, download and extract the data from https://zenodo.org/record/1203745 to "large_data/" directory. 6G of disk space is required for this download.
+The primary data source is the UrbanSound8K dataset. Citation for the dataset: 
+J. Salamon, C. Jacoby and J. P. Bello, "A Dataset and Taxonomy for Urban Sound Research", 22nd ACM International Conference on Multimedia, Orlando USA, Nov. 2014.
 
-This enitre project was written in python 3.6+. Users with earlier versions of python may experience incompatibilities. 
+The raw dataset used in this project is too large to upload to Github; users who wish to run all the notebooks thus need to download and extract the data from https://zenodo.org/record/1203745 to "large_data/" directory. 6G of disk space is required for this download. However, some notebooks do not require the dataset to function, as we include extracted features as CSV files.
+
+This entire project was written in python 3.6+. Users with earlier versions of python may experience incompatibilities. 
 
 The following packages are required:
 - jupyter 
 - librosa
-- numpy
+- numpy (if encountering dependencies issues, install specifically version 1.21.4)
+- pandas
 - sklearn
 - keras
 - tensorflow
 - matplotlib
 - seaborn
-- pandas
 
 These can be installed via ```pip packagename``` or ```conda packagename```
 
 ## Walkthrough
 
-The notebooks are designed to be self-contained. However, feature extraction is presently computationally-intensive and required the use of high-performance computing resources. As such, we recommend the interested user focus on ```Classification.ipynb```, the classification notebook.
+The notebooks are designed to demonstrate our approach from start to finish, and should be followed in this order:
 
-The classification notebook can be run start-to-finish out of the box as a Jupyter Notebook.
+- [data_exploration.ipynb](./data_exploration.ipynb)
+- [feature_extraction.ipynb](./feature_extraction.ipynb)
+- [feature_inspection.ipynb](./feature_inspection.ipynb)
+- [Classification.ipynb](./Classification.ipynb)
+- [classification_futurama.ipynb](./classification_futurama.ipynb)
 
-## Data exploration
+However, in practice, running all the notebooks is likely to be computationally intensive, especially for part of the feature generation procedure which required high-performance computing resources. Additionally, the data used in the final notebook could not be made directly available due to copyright issues. In light of these facts, we have included CSV files of extracted features, for both the UrbanSound8K dataset and the dataset used in the final notebook, to allow users to more easily follow our procedure if desired.
 
-Gunshot detection in the UrbanSound8K dataset: Basic visualization notebook includes data loading and various visualizations that might be useful, including some often used in audio analysis.
+We describe the general content of each notebook here. More details can be found interspersed in the relevant notebooks.
 
-## Feature Extraction
+### [Data exploration](./data_exploration.ipynb)
 
-### Data Cleaning
+The UrbanSound8K dataset consists of 8732 single-channel audio files, each labeled as one of 10 classes including the "gun_shot" class. We demonstrate how to load the data and necessary metadata. We then examine the distribution of classes in the dataset. We also showcase some low-quality or badly labeled audio samples, anticipating possible issues in their classification.
 
-Much of the audio data in the UrbanSound8K database has a significant amount of background or "room" noise. In an attempt to clean up this background we design a filter pipeline. The first step of the process is to take the hilbert transform of the time domain waveform. The absolute value of this hilbert transform is then the instantaneous amplitude of the waveform. This instantaneous amplitude is processed by a low pass filter. The second step is to find the root mean square of the waveform. The raw waveform is then scaled by the filtered instantaneous amplitude divided by the root mean square. Finally, an overall factor is added to the waveform such that the maximum amplitude is maintained between the raw and the filtered waveforms. If the waveform has a large peak this filter thus biases the waveform towards keeping the large swings, while minimizing the "white noise" styled hum. Comparatively, if the waveform does not have large swings this filter does very little to the waveform as the root mean square is everywhere close to the instantaneous amplitude.
+### [Feature Extraction](./feature_extraction.ipynb)
 
-### Musically Informed Feature Selection
+#### Data Cleaning
 
-In an attempt to select features that are understandable to humans we look to certain ideas within music theory.
+Much of the audio data in the UrbanSound8K database has a significant amount of background noise. In an attempt to clean up this background, we design a filter pipeline consisting of a so-called Hilbert transform whose goal is to amplify the large "swings" of the audio waveforms while suppressing the constant "hum" of white noise in the background. This transform is applied before the extraction of most, but not all, the features summarized below.
 
-#### The Equalizer Scale
+#### Musically Informed Feature Selection
 
-An additional issue with the audio data in the UrbanSound8K database is that the duration of the audio samples are non-uniform. In particular, the audio files labelled as "gun_shot" are significantly shorted in duration than many of the other class labels. As such we aim to extract features in the frequency domain. Normally, the total duration of a signal determines the lowest possible frequency in the discrete fourier transform. As such the first set of features we extract is a binned version of the fourier transform, where the bins are split into a set of human audible ranges; the bass, the midrange, the high end, the sub-audible (infrasound), and supra-audible (ultrasound). By taking the mean power in each of the bins we then remove any biasing information from the audio duration from our features.
+In an attempt to select features that are understandable to humans we look to certain ideas within music theory. Additionally, an issue with the audio data in the UrbanSound8K database is that the duration of the audio samples are non-uniform. In particular, the audio files labelled as "gun_shot" are significantly shorter in duration than many of the other class labels. As such, most of the features we extract are from the frequency domain.
 
-#### Harmonics and Percussives
+##### The Equalizer Scale
 
-The librosa package has a convenient function that is able to separate a waveform into its harmonic and percussive components. In order to extract further musically informed features we utilize this decomposition and extract the amount of power in the harmonic and percussive components, as well as the ratio of these powers.
+The first set of features is a binned version of the Fourier transform, where the bins are split into a set of human audible ranges; the bass, the midrange, the high end, the sub-audible (infrasound), and supra-audible (ultrasound). By taking the mean power in each of the bins we then remove biasing information from the audio duration from our features.
 
-The harmonic component of this waveform is then short-time fourier transformed and the frequencies of each time slice are binned according to the MIDI scale. This scale is a simple integer representation of the keys of a piano that has been tuned using an equal temperament. After this binning has been performed it is relatively simple to extract whether a number of musically common interval pairs and chord triplets are present. The total number of major thirds, minor thirds, perfect fifths, and major chords above a power cutoff are then counted across all time slices and extracted as a feature.
+##### Harmonics and Percussives
 
-The percussive component is somewhat simpler; we exploit the onset strength functions from librosa to determine the total number of large percussive amplitude onsets in the percussive component of the waveform.
+We decompose the audio samples into harmonic and percussive components, and extract the amount of power in each, as well as the ratio of these powers. The harmonic component is also used to extract chord information in the MIDI musical scale, while the percussive component is used to obtain a count of percussive hits present in the sample.
 
-## Feature Inspection
+##### Fundamental frequency signal
 
-## Classification
+To diversify our musically-informed feature set, we exploit Librosa's fundamental frequency estimation algorithm to obtain an effective "signal" for the presence of a clear tone indicative of music or similar sounds.
 
-In this notebook, we test a wide variety of classifiers to determine their ability to differentiate between the various sounds. We test classifiers ranging from simple (logistic regression) to complex (boosted random forest, stacked classifiers) to ensure that the final model complexity is justified by the data.
+#### Spectral Features in Max Power Window
 
-We find good success in our KPIs, with an F of over 85% for the logistic regression, our top-performing model. Using a Random Forest for feature selection, we find the following performance in 10-fold cross-validation.
+By using the rolling average of spectral power for each audio sample, we locate the time window containing the maximal amount of power in each sample. This isolates what is likely the most pertinent part of the audio, especially for loud sounds such as those of the "gun_shot" class. We then extract from this window various spectral features commonly used in audio analysis, such as spectral flatness and rolloff, and calculate their descriptive statistical values such as median, IQR, etc.
+
+### [Feature Inspection](./feature_inspection.ipynb)
+
+We demonstrate how some of the features we engineered from the raw dataset discriminate between classes, often in an intuitively understandable manner, before we even attempt to input them into machine learning models.
+
+### [Classification](./Classification.ipynb)
+
+In this notebook, we test a wide variety of classifiers to determine their ability to differentiate between the various sounds. The classifiers range from simple (logistic regression) to complex (boosted random forest, stacked classifiers) to ensure that the final model complexity is justified by the data.
+
+We prune down our extracted features to only the most relevant using a Random Forest model's estimation of feature importance.
+
+We find good success in our KPIs, with an F measure of over 85% for the logistic regression, our top-performing model. We find the following performance in 10-fold cross-validation.
 
 | Classifier   | Gunshot Recall | Gunshot Fmeasure | Cross-class Fmeasure | 
 |--------------|----------------|----------------------|----------------------|
@@ -86,17 +102,15 @@ We find good success in our KPIs, with an F of over 85% for the logistic regress
 | Random Forest       | 0.8038 +/- 0.0544  | 0.8285 +/- 0.039  | 0.5938 +/- 0.011 |
 | Neural Net          | 0.7951 +/- 0.0445  | 0.7955 +/- 0.0313  | 0.6019 +/- 0.014 |
 | AdaBoost            | 0.7131 +/- 0.0441  | 0.5456 +/- 0.0354  | 0.3599 +/- 0.011 |
-| Naive Bayes         | 0.5657 +/- 0.0363  | 0.5515 +/- 0.0418  | nan +/- nan |
-| Quadratic Discriminant Analysis                 | 0.5674 +/- 0.0529  | 0.7042 +/- 0.0458  | nan +/- nan |
 | Linear Discriminant Analysis                 | 0.7964 +/- 0.0384  | 0.7563 +/- 0.0376  | 0.5978 +/- 0.012 |
 | ExtraTrees          | 0.774 +/- 0.0507   | 0.8154 +/- 0.037  | 0.57 +/- 0.014 |
 | Boosted Random Forest          | **0.8182 +/- 0.0539**  | **0.8392 +/- 0.0377**  | **0.6107 +/- 0.014** |
 | Stacking            | **0.8666 +/- 0.0371**  | **0.8451 +/- 0.0344**  | **0.6469 +/- 0.011** |
 
-The most successful models, the logistic regression and the Boosted Random Forest, are finally trained on all models to produce our final models.
+The most successful models, the logistic regression and the Boosted Random Forest, are finally trained on all folds to produce our final models.
 
-Error bars come from estimating the standard error across 10 cross validation folds and show that the top three models, highlighted in bold, are consistent with each other for our KPIs. We deploy both the logistic regression and the boosted random forest in a test case to investigate outside-of-set performance.
+Error bars come from estimating the standard error across 10 cross validation folds and show that the top three models, highlighted in bold, are consistent with each other for our KPIs.
 
-## Field testing
+### [Field testing on Futurama episode](./classification_futurama.ipynb)
 
-Field testing was performed on an episode of Futurama with known gunshot noise, demonstrating its value to stakeholders in the film and television industry.
+We deploy both the logistic regression and the boosted random forest in a test case to investigate outside-of-set performance, demonstrating its value to stakeholders in the film and television industry. The dataset consists of an episode of Futurama known to contain several gunshot sounds, split into 5 second audio fragments. In our presentation slides, we further showcase the ability of the models to find the gunshot sounds despite some confusion with similar sudden sounds present in the episode.
